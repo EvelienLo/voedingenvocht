@@ -20,7 +20,26 @@ function render(){if(ci<0){app.innerHTML='<div class="card"><h2>Kies een zorgvra
 const c=cases[ci];let h='<div class="card"><strong>Stap '+Math.min(stage+1,5)+' van 5 · '+c.name+'</strong><div class="progress"><div style="width:'+Math.min((stage+1)*20,100)+'%"></div></div></div>'+plan(c);
 if(stage===0){h+='<div class="card"><h2>🥗 1. Stel de maaltijd samen</h2><p>Klik op alle voedingsmiddelen die geschikt zijn. De gekozen producten verschijnen op het bord.</p><div class="layout"><div class="foodgrid">'+c.foods.map((f,i)=>'<button class="food '+(chosen.includes(i)?'chosen':'')+'" aria-pressed="'+chosen.includes(i)+'" onclick="toggle('+i+')"><span>'+f[0]+'</span>'+esc(f[1])+'</button>').join('')+'</div><div><h3 style="text-align:center">Jouw bord</h3><div class="plate">'+(chosen.length?chosen.map(i=>'<span title="'+esc(c.foods[i][1])+'">'+c.foods[i][0]+'</span>').join(''):'<span style="font-size:1rem;color:#7c928a">Nog leeg</span>')+'</div><p class="small" style="text-align:center">'+chosen.map(i=>esc(c.foods[i][1])).join(' · ')+'</p></div></div></div>'}
 else if(stage<=3){let st=c.steps[stage-1];h+='<div class="card"><h2>'+['🪑 2. ','⚠️ 3. ','📝 4. '][stage-1]+st.title+'</h2><p>'+esc(st.q)+'</p><p class="small">Je mag meer dan één antwoord kiezen.</p>'+st.opts.map((o,i)=>'<button class="choice '+(chosen.includes(i)?'chosen':'')+'" aria-pressed="'+chosen.includes(i)+'" onclick="toggle('+i+')">'+(chosen.includes(i)?'☑':'☐')+' '+esc(o[0])+'</button>').join('')+'</div>'}
-else{let groups=[{title:"Maaltijd",opts:c.foods.map(f=>[f[1],f[2],f[2]?"Dit past bij het zorgplan.":"Dit past niet bij het zorgplan."])},...c.steps];let score=0,total=0;h+='<div class="card"><h2>🎉 Situatie afgerond: jouw feedback</h2><p>Lees rustig wat goed ging en wat je nog kunt oefenen.</p>';let blocks=groups.map((g,k)=>{let items=g.opts.map((o,i)=>{let sel=(answers[k]||[]).includes(i),ok=sel===!!o[1];total++;if(ok)score++;return '<div class="feedback '+(ok?'':'bad')+'"><strong>'+(ok?'✓ Goed':'✕ Nog oefenen')+'</strong><p>'+esc(o[0])+'</p><p>'+(sel?'Je koos dit. ':'Je koos dit niet. ')+(ok?(o[1]?'Dat is juist. ':'Goed dat je dit niet koos. '):(o[1]?'Dit had je moeten kiezen. ':'Dit was geen goede keuze. '))+esc(o[2])+'</p></div>'}).join('');return '<h3>'+g.title+'</h3>'+items});h+='<div id="score"></div>'+blocks.join('')+btn('Opnieuw oefenen','begin('+ci+')')+' '+btn('Andere zorgvrager','begin(-1)')+'</div>';app.innerHTML=h.replace('<div id="score"></div>','<p><strong>'+score+' van '+total+' keuzes goed ('+Math.round(score/total*100)+'%)</strong></p>');return}
+else{
+let groups=[{title:"1. Maaltijd samenstellen",opts:c.foods.map(f=>[f[1],f[2],f[2]?"Dit voedingsmiddel past bij de afspraken voor deze zorgvrager.":"Dit voedingsmiddel is niet geschikt als keuze voor deze maaltijd. Controleer het zorgplan."])},...c.steps.map((g,i)=>({...g,title:(i+2)+". "+g.title}))];
+let correct=0,needed=0,errors=0;
+h+='<div class="card"><h2>🎉 Situatie afgerond: jouw feedback</h2><p>Je krijgt geen punten voor antwoorden die je niet koos. Je ziet hoeveel goede handelingen je hebt gekozen en welke fouten je maakte.</p>';
+let blocks=groups.map((g,k)=>{
+let items=g.opts.map((o,i)=>{
+let sel=(answers[k]||[]).includes(i),good=!!o[1];
+if(good){needed++;if(sel)correct++}else if(sel)errors++;
+if(!sel&&!good)return "";
+let ok=good&&sel;
+let status=ok?"✓ Goed gekozen":good?"✕ Goede keuze vergeten":"✕ Deze keuze was niet goed";
+let why=esc(o[2]||"Controleer de afspraken in het zorgplan.");
+return '<div class="feedback '+(ok?'':'bad')+'"><strong>'+status+'</strong><p><strong>'+esc(o[0])+'</strong></p><p>'+why+'</p></div>';
+}).join('');
+return '<h3>'+esc(g.title)+'</h3>'+items;
+});
+let eventError=c.steps[1].opts.some((o,i)=>!o[1]&&(answers[2]||[]).includes(i))||c.steps[1].opts.some((o,i)=>o[1]&&!(answers[2]||[]).includes(i));
+h+='<div class="plan"><strong>Jouw resultaat</strong><p>Goede keuzes: '+correct+' van '+needed+'</p><p>Foute keuzes aangeklikt: '+errors+'</p><p>Dit is een oefening, geen officiële evaluatie.</p></div>';
+if(eventError)h+='<div class="feedback bad"><strong>⚠️ Veiligheid tijdens de maaltijd</strong><p>Bekijk vooral de feedback bij “Tijdens de maaltijd”. Veilig handelen is belangrijker dan een hoge score.</p></div>';
+h+=blocks.join('')+btn('Opnieuw oefenen','begin('+ci+')')+' '+btn('Andere zorgvrager','begin(-1)')+'</div>';app.innerHTML=h;return}
 h+='<div class="actions">'+btn('← Terug', 'back()',true)+btn(stage===3?'Bekijk feedback →':'Volgende stap →','forward()')+'</div>';app.innerHTML=h}
 render();
 </script></html>
